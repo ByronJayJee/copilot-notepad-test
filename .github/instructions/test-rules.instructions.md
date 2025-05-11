@@ -72,4 +72,8 @@ applyTo: '**'
   - Update documentation when implementing feature changes.
 - Reference the relevant `ai/docs/` files when writing or modifying feature code.
 - Always reference the `ai/docs/` directory for information on the app's features and functionality when writing code.
+- Append every chat prompt and reponse in `ai/chat-log.md` with:
+  - Date and time of the conversation.
+  - User prompt and assistant response.
+  - Any relevant code snippets or links to files.
 </common_patterns>
