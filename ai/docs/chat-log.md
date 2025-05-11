@@ -217,3 +217,19 @@ please ensure chat-log.md is updated to included all chat history
 
 ## Assistant Response
 The chat log has been updated to include all recent interactions. Let me know if you need further assistance.
+
+---
+
+## User Prompt
+for milestone-2-psuedocode, add test to ensure error if trying to create user with existing email address
+
+## Assistant Response
+A test has been added to the milestone-2 pseudocode to ensure an error is thrown when trying to create a user with an existing email address. Let me know if you need further modifications!
+
+---
+
+## User Prompt
+please ensure chat-log.md is updated to included all chat history
+
+## Assistant Response
+The chat log has been updated with all recent interactions. Let me know if there's anything else you'd like to address!
