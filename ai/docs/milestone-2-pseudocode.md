@@ -47,4 +47,12 @@ expect(user).not.toBeNull();
 if (!supabase.auth.user()) {
   expect(redirect).toHaveBeenCalledWith('/login');
 }
+
+// Test: Ensure error is thrown when trying to create a user with an existing email address
+try {
+  await handleSignup('test@example.com', 'password123');
+} catch (error) {
+  expect(error).not.toBeNull();
+  expect(error.message).toContain('already exists');
+}
 ```
