@@ -1,8 +1,9 @@
 "use client"
 
 import type React from "react"
+import { supabase } from "../lib/supabaseClient";
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { Check, Pencil, Plus, Trash2, X } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -15,6 +16,7 @@ type Todo = {
 }
 
 type User = {
+  id?: number
   name: string
   email: string
   avatarUrl?: string
@@ -30,25 +32,69 @@ export function TodoList({ user }: TodoListProps) {
   const [editingId, setEditingId] = useState<number | null>(null)
   const [editText, setEditText] = useState("")
 
-  // Create a new todo
-  const addTodo = (e: React.FormEvent) => {
-    e.preventDefault()
-    if (newTodo.trim() === "") return
+  useEffect(() => {
+    fetchTodos();
+  }, [user.id]);
 
-    const newTodoItem: Todo = {
-      id: Date.now(),
-      text: newTodo,
-      completed: false,
+  const fetchTodos = async () => {
+    /*if (!user.id) {
+      console.error("User ID is undefined. Cannot fetch todos.");
+      return;
+    }*/
+
+    const { data, error } = await supabase
+      .from("todos")
+      .select("*")
+      //.eq("user_id", user.id);
+
+    if (error) {
+      console.error("Error fetching todos:", error);
+    } else {
+      setTodos(data || []);
     }
+  };
 
-    setTodos([...todos, newTodoItem])
-    setNewTodo("")
-  }
+  // Create a new todo
+  const addTodo = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (newTodo.trim() === "") return;
+
+    try {
+      const { data, error } = await supabase
+        .from("todos")
+        .insert([{ text: newTodo, completed: false, user_id: user.id }]);
+
+      if (error) {
+        console.error("Error adding todo:", error);
+      } else {
+        setNewTodo("");
+        fetchTodos(); // Fetch the updated list of todos
+      }
+    } catch (err) {
+      console.error("Unexpected error adding todo:", err);
+    }
+  };
 
   // Toggle todo completion status
-  const toggleTodo = (id: number) => {
-    setTodos(todos.map((todo) => (todo.id === id ? { ...todo, completed: !todo.completed } : todo)))
-  }
+  const toggleTodo = async (id: number) => {
+    const todo = todos.find((todo) => todo.id === id);
+    if (!todo) return;
+
+    try {
+      const { error } = await supabase
+        .from("todos")
+        .update({ completed: !todo.completed })
+        .eq("id", id);
+
+      if (error) {
+        console.error("Error toggling todo:", error);
+      } else {
+        fetchTodos(); // Fetch the updated list of todos
+      }
+    } catch (err) {
+      console.error("Unexpected error toggling todo:", err);
+    }
+  };
 
   // Start editing a todo
   const startEdit = (todo: Todo) => {
@@ -57,12 +103,25 @@ export function TodoList({ user }: TodoListProps) {
   }
 
   // Save edited todo
-  const saveEdit = () => {
-    if (editText.trim() === "") return
+  const saveEdit = async () => {
+    if (editText.trim() === "") return;
 
-    setTodos(todos.map((todo) => (todo.id === editingId ? { ...todo, text: editText } : todo)))
-    setEditingId(null)
-  }
+    try {
+      const { error } = await supabase
+        .from("todos")
+        .update({ text: editText })
+        .eq("id", editingId);
+
+      if (error) {
+        console.error("Error saving todo edit:", error);
+      } else {
+        setEditingId(null);
+        fetchTodos(); // Fetch the updated list of todos
+      }
+    } catch (err) {
+      console.error("Unexpected error saving todo edit:", err);
+    }
+  };
 
   // Cancel editing
   const cancelEdit = () => {
@@ -70,9 +129,22 @@ export function TodoList({ user }: TodoListProps) {
   }
 
   // Delete a todo
-  const deleteTodo = (id: number) => {
-    setTodos(todos.filter((todo) => todo.id !== id))
-  }
+  const deleteTodo = async (id: number) => {
+    try {
+      const { error } = await supabase
+        .from("todos")
+        .delete()
+        .eq("id", id);
+
+      if (error) {
+        console.error("Error deleting todo:", error);
+      } else {
+        fetchTodos(); // Fetch the updated list of todos
+      }
+    } catch (err) {
+      console.error("Unexpected error deleting todo:", err);
+    }
+  };
 
   return (
     <div className="w-full max-w-2xl mx-auto">
