@@ -1,8 +1,8 @@
 "use client"
 
 import type React from "react"
-
 import { useState } from "react"
+import { supabase } from "@/lib/supabaseClient"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -41,23 +41,23 @@ export function AuthForm({ onLogin }: AuthFormProps) {
     try {
       setIsLoading(true)
 
-      // Simulate API call delay
-      await new Promise((resolve) => setTimeout(resolve, 1000))
-
-      // Mock login - in a real app, this would be an API call
-      // For demo purposes, we'll accept any email with a password length >= 6
-      if (loginPassword.length < 6) {
-        throw new Error("Invalid credentials")
-      }
-
-      // Create mock user data
-      const user = {
-        name: loginEmail.split("@")[0], // Use part of email as name
+      const { data, error } = await supabase.auth.signInWithPassword({
         email: loginEmail,
-        avatarUrl: `/placeholder.svg?height=40&width=40&text=${loginEmail[0].toUpperCase()}`,
+        password: loginPassword,
+      })
+
+      if (error) {
+        throw new Error(error.message)
       }
 
-      onLogin(user)
+      if (data.user) {
+        const user = {
+          name: data.user.email?.split("@")[0] || "User",
+          email: data.user.email || "",
+          avatarUrl: `/placeholder.svg?height=40&width=40&text=${data.user.email?.[0]?.toUpperCase()}`,
+        }
+        onLogin(user)
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : "Login failed")
     } finally {
@@ -79,25 +79,45 @@ export function AuthForm({ onLogin }: AuthFormProps) {
       return
     }
 
-    if (signupPassword.length < 6) {
-      setError("Password must be at least 6 characters")
-      return
-    }
-
     try {
       setIsLoading(true)
 
-      // Simulate API call delay
-      await new Promise((resolve) => setTimeout(resolve, 1000))
-
-      // Mock signup - in a real app, this would be an API call
-      const user = {
-        name: signupName,
+      const { data, error } = await supabase.auth.signUp({
         email: signupEmail,
-        avatarUrl: `/placeholder.svg?height=40&width=40&text=${signupName[0].toUpperCase()}`,
+        password: signupPassword,
+        options: {
+          data: {
+            full_name: signupName,
+          },
+        },
+      })
+
+      if (error) {
+        throw new Error(error.message)
       }
 
-      onLogin(user)
+      if (data.user) {
+        const user = {
+          name: signupName,
+          email: signupEmail,
+          avatarUrl: `/placeholder.svg?height=40&width=40&text=${signupName[0].toUpperCase()}`,
+        };
+
+        // Insert user data into the users_test table
+        const { error: insertError } = await supabase
+          .from("users_test")
+          .insert({
+            id: data.user.id,
+            name: signupName,
+            email: signupEmail,
+          });
+
+        if (insertError) {
+          console.error("Error inserting user into users_test table:", insertError);
+        }
+
+        onLogin(user);
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : "Signup failed")
     } finally {

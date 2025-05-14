@@ -33,19 +33,39 @@ export function TodoList({ user }: TodoListProps) {
   const [editText, setEditText] = useState("")
 
   useEffect(() => {
-    fetchTodos();
-  }, [user.id]);
+    const fetchUserIdAndTodos = async () => {
+      const {
+        data: { user: authUser },
+        error,
+      } = await supabase.auth.getUser();
+
+      if (error) {
+        console.error("Error fetching authenticated user ID:", error);
+        return;
+      }
+
+      if (authUser) {
+        user.id = authUser.user_metadata.sub;
+        console.log("Authenticated user ID:", authUser.user_metadata.sub);
+
+        // Fetch todos after setting user ID
+        fetchTodos();
+      }
+    };
+
+    fetchUserIdAndTodos();
+  }, []);
 
   const fetchTodos = async () => {
-    /*if (!user.id) {
+    if (!user.id) {
       console.error("User ID is undefined. Cannot fetch todos.");
       return;
-    }*/
+    }
 
     const { data, error } = await supabase
       .from("todos")
       .select("*")
-      //.eq("user_id", user.id);
+      .eq("user_id", user.id);
 
     if (error) {
       console.error("Error fetching todos:", error);
