@@ -1,36 +1,135 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Notepad App (Supabase To-Do)
 
-## Getting Started
+A modern to-do application built with Next.js, React, and Supabase. This app allows users to create, view, update, and delete to-do tasks, with all data securely stored and synced via Supabase. Authentication is handled using Supabase Auth, and all user and task data is managed in a PostgreSQL database.
 
-First, run the development server:
+## Features
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+- User authentication (sign up, login) via Supabase Auth
+- CRUD operations for to-do tasks (create, read, update, delete)
+- Each user's tasks are private and synced with Supabase
+- Responsive, modern UI using custom React components
+- Error handling for all Supabase operations
+- User data is stored in a `users_test` table after signup
+
+## Project Structure
+
+```
+ai/docs/                # Project documentation and feature specs
+notepad-app/
+  src/
+    app/                # Next.js app entry and layout
+    components/         # React components (auth-form, todo-list, UI)
+    lib/                # Supabase client and utilities
+  public/               # Static assets
+  README.md             # Project documentation (this file)
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+## Dependencies
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+- [Next.js](https://nextjs.org/)
+- [React](https://react.dev/)
+- [Supabase JS](https://supabase.com/docs/reference/javascript)
+- [Lucide React](https://lucide.dev/)
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+## Environment Variables
 
-## Learn More
+Create a `.env.local` file in the `notepad-app/` directory with the following:
 
-To learn more about Next.js, take a look at the following resources:
+```
+NEXT_PUBLIC_SUPABASE_URL=your-supabase-url
+NEXT_PUBLIC_SUPABASE_ANON_KEY=your-supabase-anon-key
+```
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+## Setup & Running Locally
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+1. **Install dependencies:**
+   ```bash
+   npm install
+   ```
+2. **Configure environment variables:**
+   - Copy your Supabase project URL and anon key into `.env.local` as shown above.
+3. **Run the development server:**
+   ```bash
+   npm run dev
+   ```
+4. **Open the app:**
+   - Visit [http://localhost:3000](http://localhost:3000) in your browser.
 
-## Deploy on Vercel
+## Supabase Database Setup
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+### 1. Create Tables
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+In the Supabase dashboard, go to the SQL Editor and run the following SQL to create the required tables:
+
+```sql
+-- Table for todos
+CREATE TABLE IF NOT EXISTS todos (
+  id serial PRIMARY KEY,
+  text text NOT NULL,
+  completed boolean NOT NULL DEFAULT false,
+  user_id uuid NOT NULL
+);
+
+-- Table for user info
+CREATE TABLE IF NOT EXISTS users_test (
+  id uuid PRIMARY KEY,
+  name text,
+  email text
+);
+```
+
+### 2. Enable Row Level Security (RLS)
+
+For privacy, enable RLS on both tables and add policies as needed:
+
+```sql
+ALTER TABLE todos ENABLE ROW LEVEL SECURITY;
+ALTER TABLE users_test ENABLE ROW LEVEL SECURITY;
+
+-- Example policy for todos (only allow users to access their own todos)
+CREATE POLICY "Allow individual user access" ON todos
+  FOR ALL USING (user_id = auth.uid());
+```
+
+### 3. Create Trigger to Sync Auth Users to `users_test`
+
+To automatically insert new users into `users_test` after signup, add the following function and trigger:
+
+```sql
+-- Function to insert new users into users_test
+CREATE OR REPLACE FUNCTION public.handle_new_user()
+RETURNS TRIGGER AS $$
+BEGIN
+  INSERT INTO public.users_test (id, name, email)
+  VALUES (NEW.id, NEW.raw_user_meta_data->>'full_name', NEW.email);
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+-- Trigger on auth.users
+CREATE TRIGGER on_auth_user_created
+AFTER INSERT ON auth.users
+FOR EACH ROW EXECUTE FUNCTION public.handle_new_user();
+```
+
+### 4. Grant Permissions
+
+Make sure your service role or anon key has the correct permissions to insert and select from these tables.
+
+### 5. Reference
+
+- See the [Supabase SQL docs](https://supabase.com/docs/guides/database) for more details on schema, RLS, and triggers.
+
+## Documentation
+
+- See the `ai/docs/` directory for feature specifications, architecture, and development roadmap.
+
+## Contributing
+
+- Follow the coding and workflow standards in `.github/instructions/test-rules.instructions.md`.
+- Use atomic commits and conventional commit messages.
+- Update documentation in `ai/docs/` for any feature changes.
+
+## License
+
+MIT
